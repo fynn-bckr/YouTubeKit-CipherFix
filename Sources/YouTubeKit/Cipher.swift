@@ -332,7 +332,10 @@ class Cipher {
     
     /// Extract the raw code for the throttling function.
     class func getThrottlingFunctionCode(js: String, functionName: String = "processNSignature") throws -> String {
-        let name = try getThrottlingFunctionName(js: js)
+        //print("extracted js: \(js)")
+        /*let name = try getThrottlingFunctionName(js: js)
+        
+        print("Found throttling function name: \(name)\n")
         
         let regex = NSRegularExpression(NSRegularExpression.escapedPattern(for: name) + #"=function\((\w)\)"#)
         guard let (match, groupMatches) = regex.firstMatch(in: js, includingGroups: [1]) else {
@@ -348,7 +351,43 @@ class Cipher {
         // workaround for "typeof" issue
         code.replace(NSRegularExpression(#";\s*if\s*\(\s*typeof\s+[a-zA-Z0-9_$]+\s*===?\s*(["\'])undefined\1\s*\)\s*return\s+\#(variableName);"#), with: ";")
         
-        return "function \(functionName)(\(variableName)) \(code)"
+        return "function \(functionName)(\(variableName)) \(code)"*/
+        
+        guard let jsURL = Bundle.module.url(forResource: "main", withExtension: "js") else {
+           print("JS file not found in bundle.")
+            throw YouTubeKitError.regexMatchError
+        }
+    
+        // "/Users/fynn/WebstormProjects/YTExtractorTest/src/main.js"
+        let jsResult = runNodeScript(scriptPath: jsURL.absoluteString)
+        
+        guard let code = jsResult else {
+            throw YouTubeKitError.regexMatchError
+        }
+        
+        return code
+    }
+    
+    class func runNodeScript(scriptPath: String) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["node", scriptPath]
+
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+
+        do {
+            try process.run()
+        } catch {
+            print("Failed to start process: \(error)")
+            return nil
+        }
+
+        process.waitUntilExit()
+
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+        return String(data: data, encoding: .utf8)
     }
     
     enum JSFunction {
